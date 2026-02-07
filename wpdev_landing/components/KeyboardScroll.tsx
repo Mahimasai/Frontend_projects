@@ -14,30 +14,32 @@ export default function KeyboardScroll() {
   // Initialize scroll hook
   const { scrollYProgress } = useScroll();
 
-  // Map scroll (0-1) to frame index (0-79)
-  const frameIndex = useTransform(scrollYProgress, [0, 1], [0, 79]);
+  // Map scroll (0-1) to frame index (0-78-0) for Open -> Close loop
+  // Assuming Frame 0 is Assembled and Frame 78 is Exploded (or vice versa, this ensures loop)
+  const frameIndex = useTransform(scrollYProgress, [0, 0.5, 1], [0, 78, 0]);
 
   // Load images
   useEffect(() => {
     const loadImages = async () => {
       const loadedImages: HTMLImageElement[] = [];
-      const frameCount = 80;
+      const totalFrames = 80;
 
-      for (let i = 0; i < frameCount; i++) {
+      // Start from 1 to skip the first frame (000) as requested
+      for (let i = 1; i < totalFrames; i++) {
         const img = new Image();
         const frameNumber = i.toString().padStart(3, "0");
         img.src = `/final_animation/final_animation_${frameNumber}.jpg`;
         await new Promise((resolve, reject) => {
             img.onload = () => resolve(true);
             img.onerror = () => {
-                console.error(`Failed to load image: ${img.src}`);
-                resolve(false); // Resolve false on error to skip
+                // console.error(`Failed to load image: ${img.src}`);
+                resolve(false); 
             };
         });
         if (img.complete && img.naturalWidth !== 0) {
             loadedImages.push(img);
         }
-        setLoadingProgress(Math.round(((i + 1) / frameCount) * 100));
+        setLoadingProgress(Math.round((i / totalFrames) * 100));
       }
 
       setImages(loadedImages);
@@ -59,6 +61,10 @@ export default function KeyboardScroll() {
 
     // Handle high DPI displays
     const dpr = window.devicePixelRatio || 1;
+    
+    // Smooth rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     
     const render = (index: number) => {
       const idx = Math.min(
@@ -84,11 +90,9 @@ export default function KeyboardScroll() {
 
       // Cover logic
       if (imgRatio > canvasRatio) {
-        // Image is wider than canvas. Fit height.
         drawHeight = canvasHeight;
         drawWidth = canvasHeight * imgRatio;
       } else {
-         // Image is taller/narrower or equal. Fit width.
          drawWidth = canvasWidth;
          drawHeight = canvasWidth / imgRatio;
       }
@@ -126,18 +130,22 @@ export default function KeyboardScroll() {
     }
   }, [loaded, images, frameIndex]);
 
-  // Text Overlay Opacity Maps
-  const opacity1 = useTransform(scrollYProgress, [0, 0.15, 0.25], [1, 1, 0]);
-  const y1 = useTransform(scrollYProgress, [0, 0.25], [0, -20]);
+  // Text Overlay Opacity Maps (Adjusted for Ping-Pong)
+  // 0% - Start (Assembled)
+  const opacity1 = useTransform(scrollYProgress, [0, 0.1], [1, 0]);
+  const y1 = useTransform(scrollYProgress, [0, 0.1], [0, -20]);
 
-  const opacity2 = useTransform(scrollYProgress, [0.2, 0.3, 0.45, 0.55], [0, 1, 1, 0]);
-  const y2 = useTransform(scrollYProgress, [0.2, 0.3], [20, 0]);
+  // 25% - Opening
+  const opacity2 = useTransform(scrollYProgress, [0.15, 0.25, 0.35], [0, 1, 0]);
+  const y2 = useTransform(scrollYProgress, [0.15, 0.25], [20, 0]);
 
-  const opacity3 = useTransform(scrollYProgress, [0.5, 0.6, 0.75, 0.85], [0, 1, 1, 0]);
-  const y3 = useTransform(scrollYProgress, [0.5, 0.6], [20, 0]);
+  // 50% - Fully Exploded (Peak)
+  const opacity3 = useTransform(scrollYProgress, [0.4, 0.5, 0.6], [0, 1, 0]);
+  const y3 = useTransform(scrollYProgress, [0.4, 0.5], [20, 0]);
   
-  const opacity4 = useTransform(scrollYProgress, [0.8, 0.9, 1], [0, 1, 1]);
-  const y4 = useTransform(scrollYProgress, [0.8, 0.9], [20, 0]);
+  // 100% - Reassembled
+  const opacity4 = useTransform(scrollYProgress, [0.85, 0.95, 1], [0, 1, 1]);
+  const y4 = useTransform(scrollYProgress, [0.85, 0.95], [20, 0]);
 
   if (!loaded) {
     return (
